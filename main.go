@@ -8,63 +8,49 @@ import (
 	"strings"
 )
 
-type Graph map[interface{}]*node
-
-type node struct {
-	Val interface{}
-	Adj []*node
-}
-
-func (g Graph) Get(val interface{}) *node {
-	return g[val]
-}
-
-func (g Graph) Add(val interface{}) *node {
-
-	// val exists
-	if n := g.Get(val); n != nil {
-		return n
-	}
-
-	// create node for new val
-	n := &node{
-		Val: val,
-	}
-	g[val] = n
-	return n
-}
-
-func (g Graph) AddAdj(val, adj interface{}) *node {
-
-	// get val node
-	n := g.Get(val)
-
-	// val is new
-	if n == nil {
-		n = &node{
-			Val: val,
-		}
-		g[val] = n
-	}
-
-	// get adj node
-	nAdj := g.Get(adj)
-
-	// adj is new
-	if nAdj == nil {
-		nAdj = &node{
-			Val: adj,
-		}
-		g[adj] = nAdj
-	}
-	// add adjacent node
-	n.Adj = append(n.Adj, nAdj)
-	return n
-}
+type CourseID string
+type Courses map[CourseID]*Course
 
 type Course struct {
-	ID   string
-	desc string
+	ID      CourseID
+	Desc    string
+	Prereqs []*Course
+}
+
+func (cc Courses) Add(c Course) *Course {
+
+	// course already exists
+	if exist, ok := cc[c.ID]; ok {
+		return exist
+	}
+
+	// save new course
+	cc[c.ID] = &c
+	return cc[c.ID]
+}
+
+func (cc Courses) AddPrereqs(c Course, prereqs ...Course) {
+
+	// course is new
+	if cc[c.ID] == nil {
+		cc[c.ID] = &c
+	}
+
+	course := cc[c.ID]
+	for _, prereq := range prereqs {
+		added := cc.Add(prereq)
+		course.addPrereq(added)
+	}
+}
+
+func (c *Course) addPrereq(prereq *Course) {
+	for _, exist := range c.Prereqs {
+		if prereq == exist {
+			return
+		}
+	}
+
+	c.Prereqs = append(c.Prereqs, prereq)
 }
 
 func main() {
@@ -72,7 +58,7 @@ func main() {
 
 	// construct graph of courses from input
 	//
-	courses := make(Graph)
+	courses := make(Courses)
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -87,16 +73,14 @@ func main() {
 
 		// save course
 		courses.Add(course)
-		for _, prereq := range prereqs {
-			courses.AddAdj(course, prereq)
-		}
+		courses.AddPrereqs(course, prereqs...)
 
 	}
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
 
-	// debug
+	// debug, check graph
 	for k, v := range courses {
 		fmt.Println(k, v)
 	}
@@ -104,7 +88,7 @@ func main() {
 }
 
 func parseCourse(str string) (Course, []Course) {
-	// split COURSE: PREREQ LIST
+	// split course from prereq list
 	//
 	tokens := strings.Split(str, ":")
 	if len(tokens) < 1 {
@@ -112,7 +96,7 @@ func parseCourse(str string) (Course, []Course) {
 	}
 
 	course := Course{
-		ID: strings.TrimSpace(tokens[0]),
+		ID: CourseID(strings.TrimSpace(tokens[0])),
 	}
 
 	// without prereq
@@ -131,7 +115,7 @@ func parseCourse(str string) (Course, []Course) {
 	var prereqs []Course
 	for _, courseID := range tokens {
 		prereqs = append(prereqs, Course{
-			ID: strings.TrimSpace(courseID),
+			ID: CourseID(strings.TrimSpace(courseID)),
 		})
 	}
 	return course, prereqs
