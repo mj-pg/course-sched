@@ -69,7 +69,7 @@ func main() {
 			continue
 		}
 		course, prereqs := parseCourse(line)
-		fmt.Println(course, prereqs)
+		//fmt.Println(course, prereqs)
 
 		// save course
 		courses.Add(course)
@@ -81,10 +81,27 @@ func main() {
 	}
 
 	// debug, check graph
-	for k, v := range courses {
+	/*for k, v := range courses {
 		fmt.Println(k, v)
-	}
+	}*/
 
+	dfs(courses)
+
+}
+
+func dfs(cc Courses) {
+	for _, c := range cc {
+		fmt.Printf("%s: ", c.ID)
+		dfsp(c, "\t")
+		fmt.Println()
+	}
+}
+
+func dfsp(c *Course, indent string) {
+	for _, p := range c.Prereqs {
+		fmt.Printf("\n%s%s, ", indent, p.ID)
+		dfsp(p, indent+"\t")
+	}
 }
 
 func parseCourse(str string) (Course, []Course) {
